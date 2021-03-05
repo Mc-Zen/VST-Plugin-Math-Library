@@ -55,24 +55,11 @@ namespace VSTMath
     };
 
     /*
-     * Abstract base class for all eigenvalue problems. The problem can be evaluated by using the
-     * () operator. myEigenvalueProblem(23, Vector<float, 2>({2,3}))
-     * 
-     */
-    template <class T, int d, int n>
-    class EigenvalueProblemBase
-    {
-    public:
-    protected:
-        virtual T evaluate(T t, Vector<T, d> x) = 0;
-    };
-
-    /*
      * (Abstract) eigenvalue problem base class that implements the main procedure with eigenfunctions and -values
      * and declares methods to evaluate the eigenfunctions, -values and weights for the i-th eigenvalue. 
      */
     template <class T, int d, int n>
-    class EigenvalueProblem : public EigenvalueProblemBase<T, d, n>
+    class EigenvalueProblem
     {
     public:
         // Evaluate for next time step at spatial position xOut.
@@ -119,7 +106,7 @@ namespace VSTMath
             }
         }
 
-        virtual T evaluate(T t, const Vector<T, d> x) override
+        T evaluate(T t, const Vector<T, d> x)
         {
             complex<T> result{0};
             int i = 0;
@@ -130,21 +117,21 @@ namespace VSTMath
             return result.real();
         }
 
-        // Visualisierung?
-
-        void pinch(const array<complex<T>, n> &values)
-        {
-            for (int i = 0; i < n; i++)
-            {
-                setAmplitude(i, amplitude(i) + values[i]);
-            }
-        }
-
+        // "Pinch" at the system with delta peak.
         void pinchDelta(const Vector<T, d> x, T amount)
         {
             for (int i = 0; i < n; i++)
             {
                 setAmplitude(i, amplitude(i) + eigenFunction(i, x) * amount);
+            }
+        }
+
+        // "Pinch" at the system by adding to all amplitudes.
+        void pinch(const array<complex<T>, n> &values)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                setAmplitude(i, amplitude(i) + values[i]);
             }
         }
 
@@ -161,13 +148,13 @@ namespace VSTMath
         }
 
         virtual T eigenFunction(int i, const Vector<T, d> x) const = 0;
-        virtual T eigenValue_sq(int i) const = 0;
+        virtual T eigenValue_sq(int i) const = 0; // Using squares of eigenvalues for better performance
         virtual complex<T> amplitude(int i) const = 0;
         virtual void setAmplitude(int i, complex<T> value) = 0;
 
     private:
-        T time{0};
-        T deltaT;
+        T time{0}; // current Time
+        T deltaT;  // this needs to be set to 1/(sampling rate)
     };
 
     /*
@@ -198,7 +185,7 @@ namespace VSTMath
         };
 
     private:
-        T length;
+        T length;                          // String length
         array<complex<T>, n> amplitudes{}; // all initialized with 0
     };
 
@@ -219,44 +206,14 @@ namespace VSTMath
         {
             return eigenValues_sq[i];
         }
-        virtual T weight(int i) const override
+        virtual complex<T> amplitude(int i) const override
         {
-            return weights[i];
+            return amplitudes[i];
         }
 
         array<F, n> eigenFunctions{};
         array<T, n> eigenValues_sq{}; // Always use square of ev because taking sqrt is expensive
-        array<T, n> weights{};
+        array<complex<T>, n> amplitudes{};
     };
 
-    template <class T, int n>
-    class EigenvalueProblemBase1D : public EigenvalueProblemBase<T, 1, n>
-    {
-    };
-    template <class T, int n>
-    class EigenvalueProblemBase2D : public EigenvalueProblemBase<T, 2, n>
-    {
-    };
-
-    /*
-    template <class T, class F, int n>
-    class EigenvalueProblem2
-    {
-
-        std::array<F, n> eigenFunctions;
-        std::array<T, n> eigenValues_sq; // Always use square of ev because taking sqrt is expensive
-        std::array<T, n> weights;
-
-        T evaluate(T t, T x)
-        {
-            T result{0};
-            int i = 0;
-            for (int i = 0; i < n; i++)
-            {
-                T omega = eigenValues_sq[i];
-                result += weights[i] * eigenFunctions[i](x) * std::sin(omega * t);
-            }
-            return result;
-        }
-    };*/
 }
